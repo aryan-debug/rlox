@@ -47,6 +47,9 @@ impl Scanner<'_>{
                         self.advance();
                     } 
                 }
+                else if self.match_token('*'){
+                    self.multiline_comment();
+                }
                 else{
                     self.add_token_with_no_literal(TokenType::Slash);
                 }
@@ -69,7 +72,6 @@ impl Scanner<'_>{
 
     fn advance(&mut self) -> char{
         self.current += 1;
-        println!("{0}", self.current);
         self.source.chars().nth(self.current - 1).unwrap()
     }
 
@@ -126,11 +128,12 @@ impl Scanner<'_>{
         if self.is_at_end(){
             self.code_runner.error(self.line, "Unterminated string");
         }
+        else{
+            self.advance();
 
-        self.advance();
-
-        let value = &self.source[self.start + 1..self.current - 1];
-        self.add_token(TokenType::String, Option::Some(Literal::String(value.to_string())));
+            let value = &self.source[self.start + 1..self.current - 1];
+            self.add_token(TokenType::String, Option::Some(Literal::String(value.to_string())));
+        }
     }
 
     fn number(&mut self){
@@ -156,6 +159,30 @@ impl Scanner<'_>{
         let text = &self.source[self.start..self.current];
         let token_type = KEYWORDS.get(text).unwrap_or(&TokenType::Identifier);
         self.add_token_with_no_literal(token_type.clone());
+    }
+
+    fn multiline_comment(&mut self){
+        while self.peek() != '*' && !self.is_at_end(){
+            if self.peek() == '\n'{
+                self.line += 1;
+            }
+            self.advance();
+        }
+
+        if self.is_at_end(){
+            self.code_runner.error(self.line, "Unterminated multiline comment");
+        }
+        else{
+            self.advance();
+
+            if self.peek() == '/'{
+                self.advance();
+            }
+            
+            else{
+                self.code_runner.error(self.line, "Unterminated multiline comment");
+            }
+        }
     }
 
     fn is_digit(&self, c: char) -> bool{
