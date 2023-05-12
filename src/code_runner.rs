@@ -1,15 +1,18 @@
-use std::{fs, process, io::{self, Write}};
+use std::{
+    fs,
+    io::{self, Write},
+    process,
+};
 
-use crate::scanner::Scanner;
+use crate::{expr::Expr, parser::Parser, scanner::Scanner};
 
-pub struct CodeRunner{
-    had_error: bool
+pub struct CodeRunner {
+    had_error: bool,
 }
 
-impl CodeRunner{
-
-    pub fn new() -> Self{
-        CodeRunner{had_error: false}
+impl CodeRunner {
+    pub fn new() -> Self {
+        CodeRunner { had_error: false }
     }
 
     pub fn run_file(&mut self, path: String) {
@@ -18,9 +21,8 @@ impl CodeRunner{
             process::exit(1)
         });
         self.run(content.unwrap());
-        
     }
-    
+
     pub fn run_prompt(&mut self) {
         loop {
             print!("> ");
@@ -34,24 +36,22 @@ impl CodeRunner{
             self.had_error = false;
         }
     }
-    
+
     fn run(&mut self, source: String) {
         let mut scanner = Scanner::new(source, self);
         let tokens = scanner.scan_tokens();
-        
-        for token in tokens {
-            println!("{:?}", token);
-        }
-       
+        let mut parser = Parser::new(tokens.to_vec());
+
+        Expr::print(&parser.parse());
     }
-    
-    pub fn error(&mut self, line: usize, message: &str){
+
+    pub fn error(&mut self, line: usize, message: &str) {
         self.report(line, String::new(), message);
     }
-    
-    fn report(&mut self, line: usize, location: String, message: &str){
+
+    fn report(&mut self, line: usize, location: String, message: &str) {
         println!("[line {line}] Error{location}: {message}");
         self.had_error = true;
     }
-    
 }
+
