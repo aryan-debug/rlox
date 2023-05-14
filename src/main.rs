@@ -1,17 +1,17 @@
-use std::env;
 use code_runner::CodeRunner;
-mod expr;
-mod scanner;
-mod token_type;
-mod token;
-mod literal;
+use std::env;
 mod code_runner;
+mod expr;
+mod interpreter;
 mod keywords;
+mod literal;
 mod parser;
-
+mod scanner;
+mod token;
+mod token_type;
+mod error;
 
 fn main() {
-    
     let args = env::args().collect::<Vec<String>>();
     let mut code_runner = CodeRunner::new();
     println!("{args:?}");
@@ -23,4 +23,3 @@ fn main() {
         code_runner.run_prompt();
     }
 }
-

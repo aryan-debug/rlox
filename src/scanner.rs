@@ -1,27 +1,25 @@
-use crate::{token_type::{TokenType}, token::Token, literal::Literal, keywords::KEYWORDS, code_runner::{CodeRunner}};
-
-pub struct Scanner<'a>{
+use crate::{token_type::TokenType, token::Token, literal::Literal, keywords::KEYWORDS, code_runner::CodeRunner, error::error};
+pub struct Scanner{
     source: String,
     tokens: Vec<Token>,
     start: usize,
     current: usize,
     line: usize,
-    code_runner: &'a mut CodeRunner
 }
 
-impl Scanner<'_>{
+impl Scanner{
     pub fn new(source: String, code_runner: &mut CodeRunner) -> Scanner{
-        Scanner{source, tokens: vec![], start: 0, current: 0, line: 1, code_runner}
+        Scanner{source, tokens: vec![], start: 0, current: 0, line: 1}
     }
 
-    pub fn scan_tokens(&mut self) -> &Vec<Token>{
+    pub fn scan_tokens(&mut self) -> Result<&Vec<Token>, ()>{
         while !self.is_at_end(){
             self.start = self.current;
             self.scan_token();
         }
 
         self.tokens.push(Token::new(TokenType::EOF, String::new(), Option::None, self.line));
-        &self.tokens
+        Ok(&self.tokens)
     }
 
     fn scan_token(&mut self){
@@ -63,10 +61,9 @@ impl Scanner<'_>{
                     self.identifier();
                 }
                 else{
-                    self.code_runner.error(self.line, "Unexpected character");
+                    error::error(self.tokens.last().unwrap().clone(), "Unexpected character");
                 }
             }
-
         }
     }
 
@@ -126,7 +123,7 @@ impl Scanner<'_>{
         }
 
         if self.is_at_end(){
-            self.code_runner.error(self.line, "Unterminated string");
+            error::error(self.tokens.last().unwrap().clone(), "Unterminated string");
         }
         else{
             self.advance();
@@ -170,7 +167,7 @@ impl Scanner<'_>{
         }
 
         if self.is_at_end(){
-            self.code_runner.error(self.line, "Unterminated multiline comment");
+            error::error(self.tokens.last().unwrap().clone(), "Unterminated multiline comment");
         }
         else{
             self.advance();
@@ -180,7 +177,7 @@ impl Scanner<'_>{
             }
             
             else{
-                self.code_runner.error(self.line, "Unterminated multiline comment");
+                error::error(self.tokens.last().unwrap().clone(), "Unterminated multiline comment");
             }
         }
     }

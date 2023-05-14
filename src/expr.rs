@@ -1,17 +1,17 @@
-use crate::{token::Token, literal::{Literal, self}};
+use crate::{token::Token, literal::{Literal}};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Expr{
-    Binary(Box<Expr>, Token, Box<Expr>),
-    Unary(Token, Box<Expr>),
+    Binary(Result<Box<Expr>, ()>, Token, Result<Box<Expr>, ()>),
+    Unary(Token, Result<Box<Expr>, ()>),
     Literal(Literal),
-    Grouping(Box<Expr>)
+    Grouping(Result<Box<Expr>, ()>)
 }
 
 impl Expr{
     pub fn print(expression: &Expr) -> String {
         match expression{
-            Expr::Binary(left, operator, right) => parenthesize(operator.lexeme.clone(), vec![&*left, &*right]),
+            Expr::Binary(left, operator, right) => parenthesize(operator.lexeme.clone(), vec![&left.as_ref().unwrap(), &right.as_ref().unwrap()]),
             Expr::Unary(operator, right) => todo!(),
             Expr::Literal(literal) => match_literal(literal),
             Expr::Grouping(value) => todo!()
@@ -32,7 +32,7 @@ fn parenthesize(name: String, exprs: Vec<&Expr>) -> String{
     result += &format!("( {name}");
     for expr in exprs{
         result += " ";
-        result += &Expr::print(expr);
+        result += &Expr::print(&expr);
     }
     result += ")";
     println!("{result}");
