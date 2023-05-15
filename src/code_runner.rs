@@ -1,4 +1,4 @@
-use crate::{expr::Expr, parser::Parser, scanner::Scanner};
+use crate::{expr::{Expr, self}, parser::Parser, scanner::Scanner, interpreter::{self, Interpreter}, literal::Literal};
 use std::{
     fs,
     io::{self, Write},
@@ -52,7 +52,8 @@ impl CodeRunner {
             let mut parser = Parser::new(tokens.to_vec());
             let expression = parser.parse();
             if expression.is_some(){
-                println!("{:?}", expression);
+                let interpreter = Interpreter{};
+                println!("{:?}", Literal::stringify(interpreter.interpret(&expression.unwrap())));
             }
         }
         else{
