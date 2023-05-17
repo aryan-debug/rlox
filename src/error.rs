@@ -10,6 +10,10 @@ pub mod error{
         }
     }
 
+    pub fn runtime_error(operator: &Token, message: &str){
+        eprintln!("{}\n[line {}]", message, operator.line);
+    }
+
     fn report(line: usize, location: &str, message: &str){
         eprintln!("[line {line}] Error {location}: {message}");
     }

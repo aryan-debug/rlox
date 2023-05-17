@@ -1,4 +1,4 @@
-use crate::{token_type::TokenType, token::Token, literal::Literal, keywords::KEYWORDS, code_runner::CodeRunner, error::error};
+use crate::{token_type::TokenType, token::Token, literal::Literal, keywords::KEYWORDS, error::error};
 pub struct Scanner{
     source: String,
     tokens: Vec<Token>,
@@ -8,7 +8,7 @@ pub struct Scanner{
 }
 
 impl Scanner{
-    pub fn new(source: String, code_runner: &mut CodeRunner) -> Scanner{
+    pub fn new(source: String) -> Scanner{
         Scanner{source, tokens: vec![], start: 0, current: 0, line: 1}
     }
 

@@ -120,7 +120,7 @@ impl Parser {
 
         if self.match_tokens(vec![TokenType::LeftParen]) {
             let expr = self.expression();
-            self.consume(TokenType::RightParen, "Expect ')' after expression");
+            self.consume(TokenType::RightParen, "Expect ')' after expression").unwrap();
             return Ok(Box::new(Expr::Grouping(expr)));
         } else {
             Err(self.error(self.peek(), "Expect expression."))
