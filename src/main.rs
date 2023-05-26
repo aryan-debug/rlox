@@ -10,6 +10,8 @@ mod scanner;
 mod token;
 mod token_type;
 mod error;
+mod stmt;
+mod environment;
 
 fn main() {
     let args = env::args().collect::<Vec<String>>();

@@ -1,24 +1,55 @@
-use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, error::error};
+use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, error::error, stmt::Stmt, environment::Environment};
 
-pub struct Interpreter {}
+pub struct Interpreter {
+    environment: Environment
+}
 
 impl Interpreter {
-    pub fn interpret<'a>(&'a self, expression: &'a Expr) -> Result<Literal, ()> {
-        let value = self.evaluate(&expression);
-        return value;
+
+    pub fn new() -> Self {
+        return Interpreter { environment: Environment::new() };
     }
 
-    fn accept<'a>(&'a self, expression: &'a Expr) -> Result<Literal, ()>{
+    pub fn interpret<'a>(&'a mut self, stmts: &'a [Stmt]) {
+        for stmt in stmts {
+            self.execute(stmt);
+        }
+    }
+
+    fn accept_statement<'a>(&'a mut self, stmt: &'a Stmt){
+        match stmt {
+            Stmt::Expr(expression) => { self.evaluate(expression);},
+            Stmt::Print(expression) => {
+                let value = self.evaluate(expression);
+                println!("{}", Literal::stringify(value.unwrap()));
+            },
+            Stmt::Var(token, expression) => {
+                let mut value = None;
+                if let Some(expression) = expression {
+                    value = Some(self.evaluate(expression).unwrap());
+                }
+
+                self.environment.define(token.lexeme.clone(), value.unwrap());
+            }
+        }
+    }
+
+    fn accept_expression<'a>(&'a self, expression: &'a Expr) -> Result<Literal, ()>{
         match expression{
             Expr::Binary(left, operator, right) => self.handle_binary(left.as_ref().unwrap(), operator, right.as_ref().unwrap()),
             Expr::Unary(operator, right) => self.handle_unary(operator, right.as_ref().unwrap()),
             Expr::Literal(literal) => Ok(literal.clone()),
             Expr::Grouping(value) => self.evaluate(value.as_ref().unwrap()),
+            Expr::Variable(value) => self.environment.get(value).cloned()
         }
     }
 
     fn evaluate<'a>(&'a self, expr: &'a Expr) -> Result<Literal, ()> {
-        self.accept(expr)
+        self.accept_expression(expr)
+    }
+
+    fn execute(&mut self, stmt: &Stmt) {
+        self.accept_statement(stmt)
     }
 
     fn handle_binary<'a>(&self, left: &'a Expr, operator: &Token, right: &'a Expr) -> Result<Literal, ()>{
