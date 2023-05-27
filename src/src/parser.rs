@@ -69,21 +69,7 @@ impl Parser {
         if self.match_tokens(vec![TokenType::Print]) {
             return self.print_statement();
         }
-        if self.match_tokens(vec![TokenType::LeftBrace]) {
-            return Ok(Stmt::Block(self.block()));
-        }
         return self.expression_statement();
-    }
-
-    fn block(&mut self) -> Vec<Stmt> {
-        let mut statements = Vec::new();
-
-        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
-            statements.push(self.declaration().unwrap());
-        }
-
-        self.consume(TokenType::RightBrace, "Expect '}' after block.");
-        statements
     }
 
     fn print_statement(&mut self) -> Result<Stmt, ()> {
@@ -105,26 +91,7 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Box<Expr>, ()> {
-        self.assignment()
-    }
-
-    fn assignment(&mut self) -> Result<Box<Expr>, ()> {
-        let expr = self.equality();
-
-        if self.match_tokens(vec![TokenType::Equal]) {
-            let equals = self.previous();
-            if let Ok(value) = self.assignment() {
-                if let Expr::Variable(name) = *expr.clone().unwrap() {
-                    return Ok(Box::new(Expr::Assign(name, Ok(value))));
-                }
-            }
-            else {
-                error::error(equals, "Invalid assignment target.");
-                return Err(());
-            }
-        }
-
-        return expr;
+        self.equality()
     }
 
     fn equality(&mut self) -> Result<Box<Expr>, ()> {

@@ -1,6 +1,4 @@
-use std::env;
-
-use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, error::error, stmt::Stmt, environment::{Environment, self}};
+use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, error::error, stmt::Stmt, environment::Environment};
 
 pub struct Interpreter {
     environment: Environment
@@ -9,7 +7,7 @@ pub struct Interpreter {
 impl Interpreter {
 
     pub fn new() -> Self {
-        return Interpreter { environment: Environment::new(None) };
+        return Interpreter { environment: Environment::new() };
     }
 
     pub fn interpret<'a>(&'a mut self, stmts: &'a [Stmt]) {
@@ -32,27 +30,21 @@ impl Interpreter {
                 }
 
                 self.environment.define(token.lexeme.clone(), value.unwrap());
-            },
-            Stmt::Block(statements) => self.execute_block(statements, &Environment::new(Some(&self.environment)))
+            }
         }
     }
 
-    fn accept_expression<'a>(&'a mut self, expression: &'a Expr) -> Result<Literal, ()>{
+    fn accept_expression<'a>(&'a self, expression: &'a Expr) -> Result<Literal, ()>{
         match expression{
             Expr::Binary(left, operator, right) => self.handle_binary(left.as_ref().unwrap(), operator, right.as_ref().unwrap()),
             Expr::Unary(operator, right) => self.handle_unary(operator, right.as_ref().unwrap()),
             Expr::Literal(literal) => Ok(literal.clone()),
             Expr::Grouping(value) => self.evaluate(value.as_ref().unwrap()),
-            Expr::Variable(value) => self.environment.get(value).cloned(),
-            Expr::Assign(name, value) => {
-                let value = self.evaluate((*value).as_ref().unwrap());
-                self.environment.assign(name, value.as_ref().unwrap());
-                return value;
-            },
+            Expr::Variable(value) => self.environment.get(value).cloned()
         }
     }
 
-    fn evaluate<'a>(&'a mut self, expr: &'a Expr) -> Result<Literal, ()> {
+    fn evaluate<'a>(&'a self, expr: &'a Expr) -> Result<Literal, ()> {
         self.accept_expression(expr)
     }
 
@@ -60,19 +52,7 @@ impl Interpreter {
         self.accept_statement(stmt)
     }
 
-    fn execute_block(&mut self, stmts: &Vec<Stmt>, environment: &Environment) {
-        let previous = self.environment.clone();
-
-        self.environment = environment.clone();
-
-        for statement in stmts {
-            self.execute(statement)
-        }
-
-        self.environment = previous.clone();
-    }
-
-    fn handle_binary<'a>(&mut self, left: &'a Expr, operator: &Token, right: &'a Expr) -> Result<Literal, ()>{
+    fn handle_binary<'a>(&self, left: &'a Expr, operator: &Token, right: &'a Expr) -> Result<Literal, ()>{
         let left = self.evaluate(left).unwrap();
         let right = self.evaluate(right).unwrap();
  
@@ -153,7 +133,7 @@ impl Interpreter {
         }
     }
 
-    fn handle_unary<'a>(&mut self, operator: &Token, expr: &'a Expr) -> Result<Literal, ()>{
+    fn handle_unary<'a>(&self, operator: &Token, expr: &'a Expr) -> Result<Literal, ()>{
         let right = self.evaluate(expr).unwrap();
         match (&operator.token_type, &right){
             (TokenType::Minus, Literal::Float(value)) => {
