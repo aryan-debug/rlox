@@ -1,7 +1,5 @@
-use std::env;
-
-use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, error::error, stmt::Stmt, environment::{Environment, self}};
-
+use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, error::error, stmt::Stmt, environment::{Environment}};
+use std::mem;
 pub struct Interpreter {
     environment: Environment
 }
@@ -9,7 +7,7 @@ pub struct Interpreter {
 impl Interpreter {
 
     pub fn new() -> Self {
-        return Interpreter { environment: Environment::new(None) };
+        return Interpreter { environment: Environment::new() };
     }
 
     pub fn interpret<'a>(&'a mut self, stmts: &'a [Stmt]) {
@@ -33,7 +31,16 @@ impl Interpreter {
 
                 self.environment.define(token.lexeme.clone(), value.unwrap());
             },
-            Stmt::Block(statements) => self.execute_block(statements, &Environment::new(Some(&self.environment)))
+            Stmt::Block(statements) => self.execute_block(statements, &mut Environment::from_existing(self.environment.clone())),
+            Stmt::If(condition, then_branch, else_branch) => {
+                let condition_result = self.evaluate(condition).unwrap();
+                if self.is_truthy(&condition_result) {
+                    self.execute(then_branch)
+                }
+                else if else_branch.is_some()  {
+                    self.execute(else_branch.as_ref().unwrap())
+                }
+            }
         }
     }
 
@@ -49,6 +56,17 @@ impl Interpreter {
                 self.environment.assign(name, value.as_ref().unwrap());
                 return value;
             },
+            Expr::Logical(left, operator, right) => {
+                let left = self.evaluate(left);
+                if let TokenType::Or = operator.token_type {
+                    if self.is_truthy(left.as_ref().unwrap()) { return left; };
+                }
+                else {
+                    if !self.is_truthy(left.as_ref().unwrap()) { return left };
+                }
+
+                return self.evaluate(right);
+            },
         }
     }
 
@@ -60,16 +78,14 @@ impl Interpreter {
         self.accept_statement(stmt)
     }
 
-    fn execute_block(&mut self, stmts: &Vec<Stmt>, environment: &Environment) {
-        let previous = self.environment.clone();
-
-        self.environment = environment.clone();
+    fn execute_block(&mut self, stmts: &Vec<Stmt>, mut environment: &mut Environment) {
+        mem::swap(&mut self.environment, &mut environment);
 
         for statement in stmts {
             self.execute(statement)
         }
 
-        self.environment = previous.clone();
+        self.environment = environment.clone();
     }
 
     fn handle_binary<'a>(&mut self, left: &'a Expr, operator: &Token, right: &'a Expr) -> Result<Literal, ()>{
@@ -160,16 +176,16 @@ impl Interpreter {
                 return Ok(Literal::Float(-value));
             }
             (TokenType::Bang, _) => {
-                return Ok(Literal::Bool(!self.is_truthy(right)))
+                return Ok(Literal::Bool(!self.is_truthy(&right)))
             }
             _ => {Err(error::runtime_error(operator, "Operand must be a number"))}
         }
     }
 
-    fn is_truthy(&self, literal: Literal) -> bool{
+    fn is_truthy(&self, literal: &Literal) -> bool{
         match literal{
             Literal::Null => false,
-            Literal::Bool(value) => value,
+            Literal::Bool(value) => *value,
             _ => true
         }
     }

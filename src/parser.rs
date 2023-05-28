@@ -72,7 +72,35 @@ impl Parser {
         if self.match_tokens(vec![TokenType::LeftBrace]) {
             return Ok(Stmt::Block(self.block()));
         }
+        if self.match_tokens(vec![TokenType::If]) {
+            return Ok(self.if_statement());
+        }
         return self.expression_statement();
+    }
+
+    fn if_statement(&mut self) -> Stmt {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'if'.");
+        let condition = self.expression();
+        self.consume(TokenType::RightParen, "Expect ')' after 'if'.");
+
+        let then_branch = self.statement();
+        
+        let mut else_branch:Option<Box<Stmt>> = None;
+
+        if self.match_tokens(vec![TokenType::Else]) {
+
+            else_branch = if let Ok(_else) = self.statement() {
+                Some(Box::new(_else))
+            } else { None }
+
+        }
+        else {
+            else_branch = None;
+        }
+
+        
+
+        Stmt::If(*condition.unwrap(), Box::new(then_branch.unwrap()), else_branch)
     }
 
     fn block(&mut self) -> Vec<Stmt> {
@@ -109,7 +137,7 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Box<Expr>, ()> {
-        let expr = self.equality();
+        let expr = self.or();
 
         if self.match_tokens(vec![TokenType::Equal]) {
             let equals = self.previous();
@@ -125,6 +153,29 @@ impl Parser {
         }
 
         return expr;
+    }
+
+    fn or(&mut self) -> Result<Box<Expr>, ()> {
+        let mut expr = self.and().unwrap();
+        while self.match_tokens(vec![TokenType::Or]) {
+            let operator = self.previous();
+            let right = self.and().unwrap();
+            expr = Box::new(Expr::Logical(expr, operator, right));
+        }
+
+        return Ok(expr);
+    }
+
+    fn and(&mut self) -> Result<Box<Expr>, ()> {
+        let mut expr = self.equality().unwrap();
+
+        while self.match_tokens(vec![TokenType::And]) {
+            let operator = self.previous();
+            let right = self.equality().unwrap();
+            expr = Box::new(Expr::Logical(expr, operator, right));
+        }
+
+        return Ok(expr);
     }
 
     fn equality(&mut self) -> Result<Box<Expr>, ()> {

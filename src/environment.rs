@@ -9,12 +9,21 @@ pub struct Environment {
 }
 
 impl Environment {
-    pub fn new(environemnt: Option<&Environment>) -> Environment {
-        match environemnt {
-            Some(env) => return Environment {values: HashMap::new(), enclosing: Some(Box::new(env.clone()))},
-            None => return Environment { values: HashMap::new(), enclosing: None}
+    pub fn new() -> Self {
+        Self {
+            values: HashMap::new(),
+            enclosing: None
         }
     }
+
+    pub fn from_existing(environemnt: Self) -> Self {
+        let enclosing = Some(Box::new(environemnt));
+        Self {
+            values: HashMap::new(),
+            enclosing,
+        }
+    }
+
 
     pub fn define(&mut self, name: String, value: Literal) {
         self.values.insert(name, value);

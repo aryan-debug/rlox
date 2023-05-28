@@ -16,5 +16,6 @@ pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
     "this"   =>  TokenType::This,
     "true"   =>  TokenType::True,
     "var"    =>  TokenType::Var,
-    "while"  =>  TokenType::While
+    "while"  =>  TokenType::While,
+    "else"   => TokenType::Else,
 };
