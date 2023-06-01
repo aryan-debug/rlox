@@ -1,6 +1,5 @@
 #[derive(Debug, Clone, PartialEq)]
-pub enum Literal{
-    Integer(i32),
+pub enum Literal {
     String(String),
     Float(f32),
     Bool(bool),
@@ -14,7 +13,6 @@ impl Literal{
             Literal::String(value) => value.to_string(),
             Literal::Float(value) => value.to_string(),
             Literal::Bool(value) => value.to_string(),
-            Literal::Integer(value) => value.to_string()
         }
     }
 }

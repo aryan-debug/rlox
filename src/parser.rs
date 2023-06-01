@@ -75,6 +75,12 @@ impl Parser {
         if self.match_tokens(vec![TokenType::If]) {
             return Ok(self.if_statement());
         }
+        if self.match_tokens(vec![TokenType::While]) {
+            return Ok(self.while_statement());
+        }
+        if self.match_tokens(vec![TokenType::For]) {
+            return Ok(self.for_statement());
+        }
         return self.expression_statement();
     }
 
@@ -103,6 +109,16 @@ impl Parser {
         Stmt::If(*condition.unwrap(), Box::new(then_branch.unwrap()), else_branch)
     }
 
+    fn while_statement(&mut self) -> Stmt {
+        self.consume(TokenType::LeftParen, "Expect '(' before 'while'");
+        let condition = *self.expression().unwrap();
+        self.consume(TokenType::RightParen, "Expect ')' after 'conditon'");
+
+        let body = self.statement().unwrap();
+
+        return Stmt::While(condition, Box::new(body));
+    }
+
     fn block(&mut self) -> Vec<Stmt> {
         let mut statements = Vec::new();
 
@@ -112,6 +128,59 @@ impl Parser {
 
         self.consume(TokenType::RightBrace, "Expect '}' after block.");
         statements
+    }
+
+    fn for_statement(&mut self) -> Stmt {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'for'.");
+        let mut initializer = None;
+
+        if self.match_tokens(vec![TokenType::Semicolon]) {
+            initializer = None;
+        }
+        else if self.match_tokens(vec![TokenType::Var]) {
+            initializer = Some(self.var_declaration().unwrap());
+        }
+        else {
+            initializer = Some(self.expression_statement().unwrap());
+        }
+
+        let mut condition = None;
+        if !self.check(TokenType::Semicolon) {
+            condition = Some(self.expression().unwrap());
+        }
+
+        self.consume(TokenType::Semicolon, "Expect ';' after loop condition.");
+
+        let mut increment = None;
+
+        if !self.check(TokenType::RightParen) {
+            increment = Some(self.expression().unwrap());
+        }
+
+        self.consume(TokenType::RightParen, "Expected ')' after 'for'.");
+
+        let mut body = self.statement().unwrap();
+
+        if let Some(inc) = increment {
+            body = Stmt::Block(vec![body, Stmt::Expr(*inc)])
+        }
+
+        if condition.is_none() {
+            body = Stmt::While(Expr::Literal(Literal::Bool(true)), Box::new(body));
+        }
+        else {
+            body = Stmt::While(*condition.unwrap(), Box::new(body));
+        }
+
+        if initializer.is_some() {
+            body = Stmt::Block(vec![initializer.unwrap(), body]);
+        }
+
+        return body;
+
+
+
+
     }
 
     fn print_statement(&mut self) -> Result<Stmt, ()> {
@@ -244,26 +313,26 @@ impl Parser {
         if self.match_tokens(vec![TokenType::False]) {
             return Ok(Box::new(Expr::Literal(Literal::Bool(false))));
         }
-        if self.match_tokens(vec![TokenType::True]) {
+        else if self.match_tokens(vec![TokenType::True]) {
             return Ok(Box::new(Expr::Literal(Literal::Bool(true))));
         }
-        if self.match_tokens(vec![TokenType::Nil]) {
+        else if self.match_tokens(vec![TokenType::Nil]) {
             return Ok(Box::new(Expr::Literal(Literal::Null)));
         }
 
-        if self.match_tokens(vec![TokenType::Number, TokenType::String]) {
+        else if self.match_tokens(vec![TokenType::Number, TokenType::String]) {
             return Ok(Box::new(Expr::Literal(self.previous().literal.unwrap())));
         }
 
-        if self.match_tokens(vec![TokenType::LeftParen]) {
+        else if self.match_tokens(vec![TokenType::LeftParen]) {
             let expr = self.expression();
             self.consume(TokenType::RightParen, "Expect ')' after expression").unwrap();
             return Ok(Box::new(Expr::Grouping(expr)));
         }
-        if self.match_tokens(vec![TokenType::Identifier]) {
+        else if self.match_tokens(vec![TokenType::Identifier]) {
             return Ok(Box::new(Expr::Variable(self.previous())));
         }
-         else {
+        else {
             Err(self.error(self.peek(), "Expect expression."))
         }
     }

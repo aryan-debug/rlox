@@ -1,41 +1,47 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc, cell::RefCell};
 
 use crate::{literal::Literal, token::Token, error::error};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Environment {
     values: HashMap<String, Literal>,
-    enclosing: Option<Box<Environment>>,
+    enclosing: Option<Rc<RefCell<Environment>>>,
 }
 
 impl Environment {
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self {
             values: HashMap::new(),
             enclosing: None
-        }
+        }))
     }
 
-    pub fn from_existing(environemnt: Self) -> Self {
-        let enclosing = Some(Box::new(environemnt));
-        Self {
+    pub fn from_existing(environemnt: Rc<RefCell<Self>>) -> Rc<RefCell<Self>> {
+        let enclosing = Some(environemnt);
+        Rc::new(RefCell::new(Self {
             values: HashMap::new(),
             enclosing,
-        }
+        }))
     }
 
 
-    pub fn define(&mut self, name: String, value: Literal) {
+    pub fn define(&mut self, name: String, value: Option<Literal>) {
+        let value = if let Some(val) = value {
+            val
+        }
+        else {
+            Literal::Null
+        };
         self.values.insert(name, value);
     }
 
-    pub fn get(&self, name: &Token) -> Result<&Literal, ()> {
+    pub fn get(&self, name: &Token) -> Result<Literal, ()> {
         if self.values.contains_key(&name.lexeme) {
-            return Ok(self.values.get(&name.lexeme).unwrap());
+            return Ok(self.values.get(&name.lexeme).unwrap().clone());
         }
         
         match &self.enclosing {
-            Some(environment) => return environment.get(name),
+            Some(environment) => return environment.borrow().get(name),
             None => return Err(error::runtime_error(&name, format!("Undefined variable {}.", name.lexeme).as_str()))
         }
 
@@ -46,9 +52,8 @@ impl Environment {
             *name = value.clone();
             return;
         }
-
         match &mut self.enclosing {
-            Some(environment) => environment.assign(name, value),
+            Some(environment) => environment.borrow_mut().assign(name, value),
             None => error::runtime_error(name, &format!("Undefined variable '{}'.",name.lexeme)),
         }
     }

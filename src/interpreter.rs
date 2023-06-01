@@ -1,7 +1,8 @@
+use std::{rc::Rc, cell::RefCell};
+
 use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, error::error, stmt::Stmt, environment::{Environment}};
-use std::mem;
 pub struct Interpreter {
-    environment: Environment
+    environment: Rc<RefCell<Environment>>
 }
 
 impl Interpreter {
@@ -29,9 +30,9 @@ impl Interpreter {
                     value = Some(self.evaluate(expression).unwrap());
                 }
 
-                self.environment.define(token.lexeme.clone(), value.unwrap());
+                self.environment.borrow_mut().define(token.lexeme.clone(), value);
             },
-            Stmt::Block(statements) => self.execute_block(statements, &mut Environment::from_existing(self.environment.clone())),
+            Stmt::Block(statements) => self.execute_block(statements, Environment::from_existing(Rc::clone(&self.environment))),
             Stmt::If(condition, then_branch, else_branch) => {
                 let condition_result = self.evaluate(condition).unwrap();
                 if self.is_truthy(&condition_result) {
@@ -39,6 +40,13 @@ impl Interpreter {
                 }
                 else if else_branch.is_some()  {
                     self.execute(else_branch.as_ref().unwrap())
+                }
+            },
+            Stmt::While(condition, body) => {
+                let mut result = self.evaluate(condition).unwrap();
+                while self.is_truthy(&result) {
+                    self.execute(body);
+                    result = self.evaluate(condition).unwrap();
                 }
             }
         }
@@ -50,10 +58,10 @@ impl Interpreter {
             Expr::Unary(operator, right) => self.handle_unary(operator, right.as_ref().unwrap()),
             Expr::Literal(literal) => Ok(literal.clone()),
             Expr::Grouping(value) => self.evaluate(value.as_ref().unwrap()),
-            Expr::Variable(value) => self.environment.get(value).cloned(),
+            Expr::Variable(value) => self.environment.borrow().get(value),
             Expr::Assign(name, value) => {
                 let value = self.evaluate((*value).as_ref().unwrap());
-                self.environment.assign(name, value.as_ref().unwrap());
+                self.environment.borrow_mut().assign(name, value.as_ref().unwrap());
                 return value;
             },
             Expr::Logical(left, operator, right) => {
@@ -78,14 +86,15 @@ impl Interpreter {
         self.accept_statement(stmt)
     }
 
-    fn execute_block(&mut self, stmts: &Vec<Stmt>, mut environment: &mut Environment) {
-        mem::swap(&mut self.environment, &mut environment);
+    fn execute_block(&mut self, stmts: &Vec<Stmt>, environment: Rc<RefCell<Environment>>) {
+        let previous = self.environment.clone();
+        self.environment = environment.clone();
 
         for statement in stmts {
             self.execute(statement)
         }
 
-        self.environment = environment.clone();
+        self.environment = previous.clone();
     }
 
     fn handle_binary<'a>(&mut self, left: &'a Expr, operator: &Token, right: &'a Expr) -> Result<Literal, ()>{
