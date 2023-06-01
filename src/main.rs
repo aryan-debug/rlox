@@ -9,7 +9,7 @@ mod parser;
 mod scanner;
 mod token;
 mod token_type;
-mod error;
+mod error_handler;
 mod stmt;
 mod environment;
 

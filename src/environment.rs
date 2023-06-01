@@ -1,6 +1,6 @@
 use std::{collections::HashMap, rc::Rc, cell::RefCell};
 
-use crate::{literal::Literal, token::Token, error::error};
+use crate::{literal::Literal, token::Token, error_handler::error};
 
 #[derive(Clone, Debug)]
 pub struct Environment {
@@ -35,14 +35,17 @@ impl Environment {
         self.values.insert(name, value);
     }
 
-    pub fn get(&self, name: &Token) -> Result<Literal, ()> {
+    pub fn get(&self, name: &Token) -> Option<Literal> {
         if self.values.contains_key(&name.lexeme) {
-            return Ok(self.values.get(&name.lexeme).unwrap().clone());
+            return Some(self.values.get(&name.lexeme).unwrap().clone());
         }
         
         match &self.enclosing {
             Some(environment) => return environment.borrow().get(name),
-            None => return Err(error::runtime_error(&name, format!("Undefined variable {}.", name.lexeme).as_str()))
+            None => return {
+                error::runtime_error(name, format!("Undefined variable {}.", name.lexeme).as_str());
+                None
+            }
         }
 
     }

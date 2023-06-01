@@ -1,6 +1,6 @@
 use std::{rc::Rc, cell::RefCell};
 
-use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, error::error, stmt::Stmt, environment::{Environment}};
+use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, error_handler::error, stmt::Stmt, environment::{Environment}};
 pub struct Interpreter {
     environment: Rc<RefCell<Environment>>
 }
@@ -8,7 +8,7 @@ pub struct Interpreter {
 impl Interpreter {
 
     pub fn new() -> Self {
-        return Interpreter { environment: Environment::new() };
+        Interpreter { environment: Environment::new() }
     }
 
     pub fn interpret<'a>(&'a mut self, stmts: &'a [Stmt]) {
@@ -17,7 +17,7 @@ impl Interpreter {
         }
     }
 
-    fn accept_statement<'a>(&'a mut self, stmt: &'a Stmt){
+    fn accept_statement<'a>(&'a mut self, stmt: &'a Stmt) {
         match stmt {
             Stmt::Expr(expression) => { self.evaluate(expression);},
             Stmt::Print(expression) => {
@@ -52,33 +52,31 @@ impl Interpreter {
         }
     }
 
-    fn accept_expression<'a>(&'a mut self, expression: &'a Expr) -> Result<Literal, ()>{
+    fn accept_expression<'a>(&'a mut self, expression: &'a Expr) -> Option<Literal>{
         match expression{
-            Expr::Binary(left, operator, right) => self.handle_binary(left.as_ref().unwrap(), operator, right.as_ref().unwrap()),
-            Expr::Unary(operator, right) => self.handle_unary(operator, right.as_ref().unwrap()),
-            Expr::Literal(literal) => Ok(literal.clone()),
-            Expr::Grouping(value) => self.evaluate(value.as_ref().unwrap()),
+            Expr::Binary(left, operator, right) => self.handle_binary(left.as_ref(), operator, right.as_ref()),
+            Expr::Unary(operator, right) => self.handle_unary(operator, right.as_ref()),
+            Expr::Literal(literal) => Some(literal.clone()),
+            Expr::Grouping(value) => self.evaluate(value.as_ref()),
             Expr::Variable(value) => self.environment.borrow().get(value),
             Expr::Assign(name, value) => {
-                let value = self.evaluate((*value).as_ref().unwrap());
+                let value = self.evaluate((*value).as_ref());
                 self.environment.borrow_mut().assign(name, value.as_ref().unwrap());
-                return value;
+                value
             },
             Expr::Logical(left, operator, right) => {
                 let left = self.evaluate(left);
                 if let TokenType::Or = operator.token_type {
                     if self.is_truthy(left.as_ref().unwrap()) { return left; };
                 }
-                else {
-                    if !self.is_truthy(left.as_ref().unwrap()) { return left };
-                }
+                else if !self.is_truthy(left.as_ref().unwrap()) { return left };
 
-                return self.evaluate(right);
+                self.evaluate(right)
             },
         }
     }
 
-    fn evaluate<'a>(&'a mut self, expr: &'a Expr) -> Result<Literal, ()> {
+    fn evaluate<'a>(&'a mut self, expr: &'a Expr) -> Option<Literal> {
         self.accept_expression(expr)
     }
 
@@ -88,16 +86,16 @@ impl Interpreter {
 
     fn execute_block(&mut self, stmts: &Vec<Stmt>, environment: Rc<RefCell<Environment>>) {
         let previous = self.environment.clone();
-        self.environment = environment.clone();
+        self.environment = environment;
 
         for statement in stmts {
             self.execute(statement)
         }
 
-        self.environment = previous.clone();
+        self.environment = previous;
     }
 
-    fn handle_binary<'a>(&mut self, left: &'a Expr, operator: &Token, right: &'a Expr) -> Result<Literal, ()>{
+    fn handle_binary<'a>(&mut self, left: &'a Expr, operator: &Token, right: &'a Expr) -> Option<Literal>{
         let left = self.evaluate(left).unwrap();
         let right = self.evaluate(right).unwrap();
  
@@ -106,59 +104,59 @@ impl Interpreter {
             (Literal::Float(left), Literal::Float(right)) => {
                 match &operator.token_type{
                     TokenType::Plus => {
-                        Ok(Literal::Float(left + right))
+                        Some(Literal::Float(left + right))
                     }
                     TokenType::Minus => {
-                        Ok(Literal::Float(left - right))
+                        Some(Literal::Float(left - right))
                     },
                     TokenType::Slash => {
-                        Ok(Literal::Float(left / right))
+                        Some(Literal::Float(left / right))
                     },
                     TokenType::Star => {
-                        Ok(Literal::Float(left * right))
+                        Some(Literal::Float(left * right))
                     }
                     TokenType::Greater => {
-                        Ok(Literal::Bool(left > right))
+                        Some(Literal::Bool(left > right))
                     }
                     TokenType::GreaterEqual => {
-                        Ok(Literal::Bool(left >= right))
+                        Some(Literal::Bool(left >= right))
                     }
                     TokenType::Less => {
-                        Ok(Literal::Bool(left < right))
+                        Some(Literal::Bool(left < right))
                     }
                     TokenType::LessEqual => {
-                        Ok(Literal::Bool(left <= right))
+                        Some(Literal::Bool(left <= right))
                     }
                     TokenType::BangEqual => {
-                        Ok(Literal::Bool(!self.is_equal(left, right)))
+                        Some(Literal::Bool(!self.is_equal(left, right)))
                     }
                     TokenType::EqualEqual => {
-                        Ok(Literal::Bool(self.is_equal(left, right)))
+                        Some(Literal::Bool(self.is_equal(left, right)))
                     }
-                    _ =>  Err(error::runtime_error(&operator, "Operands must be numbers"))
+                    _ =>  { error::runtime_error(operator, "Operands must be numbers"); None }
                 }
             },
             (Literal::String(left), Literal::String(right)) => {
                 match &operator.token_type{
                     TokenType::Plus => {
-                        Ok(Literal::String(left.to_owned() + right))
+                        Some(Literal::String(left.to_owned() + right))
                     }
                     TokenType::BangEqual => {
-                        Ok(Literal::Bool(!self.is_equal(left, right)))
+                        Some(Literal::Bool(!self.is_equal(left, right)))
                     }
                     TokenType::EqualEqual => {
-                        Ok(Literal::Bool(self.is_equal(left, right)))
+                        Some(Literal::Bool(self.is_equal(left, right)))
                     }
-                    _ => Err(error::runtime_error(&operator, "Operands must be two numbers or two strings"))
+                    _ => { error::runtime_error(operator, "Operands must be two numbers or two strings"); None } 
                 }
             }
             (Literal::Bool(left), Literal::Bool(right)) => {
                 match operator.token_type{
                     TokenType::BangEqual => {
-                        Ok(Literal::Bool(!self.is_equal(left, right)))
+                        Some(Literal::Bool(!self.is_equal(left, right)))
                     }
                     TokenType::EqualEqual => {
-                        Ok(Literal::Bool(self.is_equal(left, right)))
+                        Some(Literal::Bool(self.is_equal(left, right)))
                     }
                     _ => unimplemented!()
                 }
@@ -166,28 +164,28 @@ impl Interpreter {
             (Literal::Null, Literal::Null) => {
                 match operator.token_type{
                     TokenType::BangEqual => {
-                        Ok(Literal::Bool(!self.is_equal(left, right)))
+                        Some(Literal::Bool(!self.is_equal(left, right)))
                     }
                     TokenType::EqualEqual => {
-                        Ok(Literal::Bool(self.is_equal(left, right)))
+                        Some(Literal::Bool(self.is_equal(left, right)))
                     }
                     _ => unimplemented!()
                 }
             }
-            (_, _) => Err(error::runtime_error(&operator, "Operands must be two numbers or two strings"))
+            (_, _) => { error::runtime_error(operator, "Operands must be two numbers or two strings"); None }
         }
     }
 
-    fn handle_unary<'a>(&mut self, operator: &Token, expr: &'a Expr) -> Result<Literal, ()>{
+    fn handle_unary(&mut self, operator: &Token, expr: &Expr) -> Option<Literal>{
         let right = self.evaluate(expr).unwrap();
         match (&operator.token_type, &right){
             (TokenType::Minus, Literal::Float(value)) => {
-                return Ok(Literal::Float(-value));
+                Some(Literal::Float(-value))
             }
             (TokenType::Bang, _) => {
-                return Ok(Literal::Bool(!self.is_truthy(&right)))
+                Some(Literal::Bool(!self.is_truthy(&right)))
             }
-            _ => {Err(error::runtime_error(operator, "Operand must be a number"))}
+            _ => { error::runtime_error(operator, "Operand must be a number"); None }
         }
     }
 

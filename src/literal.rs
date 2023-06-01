@@ -10,7 +10,7 @@ impl Literal{
     pub fn stringify(literal: Literal) -> String{
         match literal{
             Literal::Null => String::from("nil"),
-            Literal::String(value) => value.to_string(),
+            Literal::String(value) => value,
             Literal::Float(value) => value.to_string(),
             Literal::Bool(value) => value.to_string(),
         }

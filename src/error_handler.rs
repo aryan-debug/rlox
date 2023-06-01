@@ -2,7 +2,7 @@ pub mod error{
     use crate::{token::Token, token_type::TokenType};
 
     pub fn error(token: Token, message: &str){
-        if token.token_type == TokenType::EOF{
+        if token.token_type == TokenType::Eof {
             report(token.line, "at end", message);
         }
         else{

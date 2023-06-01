@@ -1,4 +1,4 @@
-use crate::{token_type::TokenType, token::Token, literal::Literal, keywords::KEYWORDS, error::error};
+use crate::{token_type::TokenType, token::Token, literal::Literal, keywords::KEYWORDS, error_handler::error};
 pub struct Scanner{
     source: String,
     tokens: Vec<Token>,
@@ -8,18 +8,18 @@ pub struct Scanner{
 }
 
 impl Scanner{
-    pub fn new(source: String) -> Scanner{
+    pub fn new(source: String) -> Scanner {
         Scanner{source, tokens: vec![], start: 0, current: 0, line: 1}
     }
 
-    pub fn scan_tokens(&mut self) -> Result<&Vec<Token>, ()>{
+    pub fn scan_tokens(&mut self) -> &Vec<Token> {
         while !self.is_at_end(){
             self.start = self.current;
             self.scan_token();
         }
 
-        self.tokens.push(Token::new(TokenType::EOF, String::new(), Option::None, self.line));
-        Ok(&self.tokens)
+        self.tokens.push(Token::new(TokenType::Eof, String::new(), Option::None, self.line));
+        &self.tokens
     }
 
     fn scan_token(&mut self){
@@ -183,11 +183,11 @@ impl Scanner{
     }
 
     fn is_digit(&self, c: char) -> bool{
-        c >= '0' && c <= '9'
+        c.is_ascii_digit()
     }
 
     fn is_alpha(&self, c: char) -> bool{
-      (c.to_ascii_lowercase() >= 'a' && c.to_ascii_lowercase() <= 'z') || c == '_'
+        c.is_ascii_lowercase() || c == '_'
     }
 
     fn is_alphanumeric(&self, c: char) -> bool{
@@ -195,7 +195,7 @@ impl Scanner{
     }
     
     fn is_at_end(&self) -> bool{
-        self.current >=  self.source.len()
+        self.current >= self.source.len()
     }
 
 }
