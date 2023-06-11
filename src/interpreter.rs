@@ -19,34 +19,37 @@ impl Interpreter {
 
     fn accept_statement<'a>(&'a mut self, stmt: &'a Stmt) {
         match stmt {
-            Stmt::Expr(expression) => { self.evaluate(expression);},
+            Stmt::Expr(expression) => { self.evaluate(expression); },
             Stmt::Print(expression) => {
-                let value = self.evaluate(expression);
-                println!("{}", Literal::stringify(value.unwrap()));
+                if let Some(value) = self.evaluate(expression) {
+                    println!("{}", Literal::stringify(value));
+                }
             },
             Stmt::Var(token, expression) => {
                 let mut value = None;
                 if let Some(expression) = expression {
-                    value = Some(self.evaluate(expression).unwrap());
+                    value = self.evaluate(expression);
                 }
 
                 self.environment.borrow_mut().define(token.lexeme.clone(), value);
             },
             Stmt::Block(statements) => self.execute_block(statements, Environment::from_existing(Rc::clone(&self.environment))),
             Stmt::If(condition, then_branch, else_branch) => {
-                let condition_result = self.evaluate(condition).unwrap();
-                if self.is_truthy(&condition_result) {
-                    self.execute(then_branch)
-                }
-                else if else_branch.is_some()  {
-                    self.execute(else_branch.as_ref().unwrap())
+                    if let Some(condition_result) = self.evaluate(condition){
+                        if self.is_truthy(&condition_result) {
+                            self.execute(then_branch)
+                        }
+                        else if else_branch.is_some()  {
+                            self.execute(else_branch.as_ref().unwrap())
+                        }
                 }
             },
             Stmt::While(condition, body) => {
-                let mut result = self.evaluate(condition).unwrap();
-                while self.is_truthy(&result) {
-                    self.execute(body);
-                    result = self.evaluate(condition).unwrap();
+                if let Some(mut result) = self.evaluate(condition){
+                    while self.is_truthy(&result) {
+                        self.execute(body);
+                        result = self.evaluate(condition).unwrap();
+                    }
                 }
             }
         }
@@ -61,15 +64,15 @@ impl Interpreter {
             Expr::Variable(value) => self.environment.borrow().get(value),
             Expr::Assign(name, value) => {
                 let value = self.evaluate((*value).as_ref());
-                self.environment.borrow_mut().assign(name, value.as_ref().unwrap());
+                self.environment.borrow_mut().assign(name, value.as_ref()?);
                 value
             },
             Expr::Logical(left, operator, right) => {
                 let left = self.evaluate(left);
                 if let TokenType::Or = operator.token_type {
-                    if self.is_truthy(left.as_ref().unwrap()) { return left; };
+                    if self.is_truthy(left.as_ref()?) { return left; };
                 }
-                else if !self.is_truthy(left.as_ref().unwrap()) { return left };
+                else if !self.is_truthy(left.as_ref()?) { return left };
 
                 self.evaluate(right)
             },
@@ -96,8 +99,8 @@ impl Interpreter {
     }
 
     fn handle_binary<'a>(&mut self, left: &'a Expr, operator: &Token, right: &'a Expr) -> Option<Literal>{
-        let left = self.evaluate(left).unwrap();
-        let right = self.evaluate(right).unwrap();
+        let left = self.evaluate(left)?;
+        let right = self.evaluate(right)?;
  
         match (&left, &right) {
             
@@ -177,7 +180,7 @@ impl Interpreter {
     }
 
     fn handle_unary(&mut self, operator: &Token, expr: &Expr) -> Option<Literal>{
-        let right = self.evaluate(expr).unwrap();
+        let right = self.evaluate(expr)?;
         match (&operator.token_type, &right){
             (TokenType::Minus, Literal::Float(value)) => {
                 Some(Literal::Float(-value))

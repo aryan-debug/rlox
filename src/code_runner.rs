@@ -51,7 +51,7 @@ impl CodeRunner {
         let tokens = scanner.scan_tokens();
         let mut parser = Parser::new(tokens.to_vec());
         let statements = parser.parse();
-        if !statements.is_empty() {
+        if !parser.get_had_err() {
             let mut interpreter = Interpreter::new();
             interpreter.interpret(&statements);
         }

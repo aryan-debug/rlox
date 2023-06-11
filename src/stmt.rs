@@ -1,6 +1,6 @@
 use crate::{expr::Expr, token::Token};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Stmt {
     Expr(Expr),
     Print(Expr),
