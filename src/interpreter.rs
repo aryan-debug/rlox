@@ -1,29 +1,34 @@
 use std::{rc::Rc, cell::RefCell};
 
-use crate::{expr::Expr, literal::Literal, token::Token, token_type::TokenType, error_handler::error, stmt::Stmt, environment::{Environment}};
+use crate::{expr::Expr, literal::{Literal, Clock}, token::Token, token_type::TokenType, error_handler::error, stmt::Stmt, environment::{Environment}, rlox_function::RloxFunction};
 pub struct Interpreter {
+    pub globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>
 }
 
 impl Interpreter {
 
     pub fn new() -> Self {
-        Interpreter { environment: Environment::new() }
+        let environment = Environment::new();
+        let interpreter = Interpreter { globals: environment.clone(), environment };
+        interpreter.globals.borrow_mut().define("clock".to_string(), Some(Literal::Callable(Rc::new(Clock{}))));
+        interpreter
     }
 
     pub fn interpret<'a>(&'a mut self, stmts: &'a [Stmt]) {
         for stmt in stmts {
-            self.execute(stmt);
+            let _ = self.execute(stmt);
         }
     }
 
-    fn accept_statement<'a>(&'a mut self, stmt: &'a Stmt) {
+    fn accept_statement<'a>(&'a mut self, stmt: &'a Stmt) -> Result<(), Option<Literal>> {
         match stmt {
-            Stmt::Expr(expression) => { self.evaluate(expression); },
+            Stmt::Expr(expression) => { self.evaluate(expression); Ok(())},
             Stmt::Print(expression) => {
                 if let Some(value) = self.evaluate(expression) {
                     println!("{}", Literal::stringify(value));
                 }
+                Ok(())
             },
             Stmt::Var(token, expression) => {
                 let mut value = None;
@@ -32,25 +37,45 @@ impl Interpreter {
                 }
 
                 self.environment.borrow_mut().define(token.lexeme.clone(), value);
+                Ok(())
             },
-            Stmt::Block(statements) => self.execute_block(statements, Environment::from_existing(Rc::clone(&self.environment))),
+            Stmt::Block(statements) => {
+                self.execute_block(statements, Environment::from_existing(Rc::clone(&self.environment)))?;
+                Ok(())
+            },
             Stmt::If(condition, then_branch, else_branch) => {
                     if let Some(condition_result) = self.evaluate(condition){
                         if self.is_truthy(&condition_result) {
-                            self.execute(then_branch)
+                            self.execute(then_branch)?
                         }
                         else if else_branch.is_some()  {
-                            self.execute(else_branch.as_ref().unwrap())
+                            self.execute(else_branch.as_ref().unwrap())?
                         }
-                }
+                    }
+                    Ok(())
             },
             Stmt::While(condition, body) => {
                 if let Some(mut result) = self.evaluate(condition){
                     while self.is_truthy(&result) {
-                        self.execute(body);
+                        self.execute(body)?;
                         result = self.evaluate(condition).unwrap();
                     }
                 }
+                Ok(())
+            },
+            Stmt::Function(name, _, _) => {
+                let function = RloxFunction::new(stmt.clone());
+                self.environment.borrow_mut().define(name.lexeme.clone(), Some(Literal::Callable(Rc::new(function))));
+                Ok(())
+            },
+            Stmt::Return(_ , value) => {
+                let value = if let Some(value) = value {
+                    self.evaluate(value)
+                }
+                else {
+                    None
+                };
+                Err(value)
             }
         }
     }
@@ -76,6 +101,24 @@ impl Interpreter {
 
                 self.evaluate(right)
             },
+            Expr::Call(callee, paren, arguments) => {
+                let callee = self.evaluate(callee)?;
+ 
+                let mut args = vec![];
+                for argument in arguments {
+                    args.push(self.evaluate(argument.as_ref().unwrap()));
+                }
+                if let Literal::Callable(callee) = callee {
+                    if arguments.len() != callee.arity() {
+                        error::runtime_error(paren, format!("Expected {}  arguments, but got {}." , callee.arity(), arguments.len()).as_str())
+                    }
+                    callee.call(self, &args)
+                }
+                else {
+                    error::runtime_error(paren, "Can only call functions and classes.");
+                    None
+                }
+            },
         }
     }
 
@@ -83,19 +126,23 @@ impl Interpreter {
         self.accept_expression(expr)
     }
 
-    fn execute(&mut self, stmt: &Stmt) {
+    fn execute(&mut self, stmt: &Stmt) -> Result<(), Option<Literal>> {
         self.accept_statement(stmt)
     }
 
-    fn execute_block(&mut self, stmts: &Vec<Stmt>, environment: Rc<RefCell<Environment>>) {
+    pub fn execute_block(&mut self, stmts: &Vec<Stmt>, environment: Rc<RefCell<Environment>>) -> Result<(), Option<Literal>> {
         let previous = self.environment.clone();
         self.environment = environment;
 
         for statement in stmts {
-            self.execute(statement)
+            if let Err(value) = self.execute(statement) {
+                self.environment = previous;
+                return Err(value);
+            }
         }
 
         self.environment = previous;
+        Ok(())
     }
 
     fn handle_binary<'a>(&mut self, left: &'a Expr, operator: &Token, right: &'a Expr) -> Option<Literal>{

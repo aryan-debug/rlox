@@ -8,5 +8,6 @@ pub enum Expr{
     Literal(Literal),
     Logical(Box<Expr>, Token, Box<Expr>),
     Variable(Token),
-    Grouping(Box<Expr>)
+    Grouping(Box<Expr>),
+    Call(Box<Expr>, Token, Vec<Option<Box<Expr>>>)
 }

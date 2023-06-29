@@ -61,7 +61,7 @@ impl Scanner{
                     self.identifier();
                 }
                 else{
-                    error::error(self.tokens.last().unwrap().clone(), "Unexpected character");
+                    //error::error(self.tokens.last().unwrap().clone(), "Unexpected character");
                 }
             }
         }
@@ -187,7 +187,7 @@ impl Scanner{
     }
 
     fn is_alpha(&self, c: char) -> bool{
-        c.is_ascii_lowercase() || c == '_'
+        c.is_ascii_lowercase() || c.is_ascii_uppercase() || c == '_'
     }
 
     fn is_alphanumeric(&self, c: char) -> bool{

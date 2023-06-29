@@ -36,6 +36,7 @@ impl Environment {
     }
 
     pub fn get(&self, name: &Token) -> Option<Literal> {
+
         if self.values.contains_key(&name.lexeme) {
             return Some(self.values.get(&name.lexeme).unwrap().clone());
         }

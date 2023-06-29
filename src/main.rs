@@ -12,6 +12,7 @@ mod token_type;
 mod error_handler;
 mod stmt;
 mod environment;
+mod rlox_function;
 
 fn main() {
     let args = env::args().collect::<Vec<String>>();
