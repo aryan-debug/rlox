@@ -69,15 +69,16 @@ impl Parser {
         let name = self.consume(TokenType::Identifier, &format!("Expect {} name.", kind))?;
         self.consume(TokenType::LeftParen, &format!("Expect '(' after {} name.", kind))?;
         let mut parameters = Vec::new();
+        if !self.check(TokenType::RightParen) {
+            loop {
+                if parameters.len() >= 255 {
+                    self.error(self.peek(), "Can't have more than 255 parameters");
+                }
+                parameters.push(self.consume(TokenType::Identifier, "Expect paramter name.")?);
 
-        loop {
-            if parameters.len() >= 255 {
-                self.error(self.peek(), "Can't have more than 255 parameters");
-            }
-            parameters.push(self.consume(TokenType::Identifier, "Expect paramter name.")?);
-
-            if !self.match_token(TokenType::Comma) {
-                break;
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
             }
         }
         self.consume(TokenType::RightParen, "Expect '(' after parameters.")?;

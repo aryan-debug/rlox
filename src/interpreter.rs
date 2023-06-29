@@ -3,7 +3,7 @@ use std::{rc::Rc, cell::RefCell};
 use crate::{expr::Expr, literal::{Literal, Clock}, token::Token, token_type::TokenType, error_handler::error, stmt::Stmt, environment::{Environment}, rlox_function::RloxFunction};
 pub struct Interpreter {
     pub globals: Rc<RefCell<Environment>>,
-    environment: Rc<RefCell<Environment>>
+    pub environment: Rc<RefCell<Environment>>
 }
 
 impl Interpreter {
@@ -64,7 +64,7 @@ impl Interpreter {
                 Ok(())
             },
             Stmt::Function(name, _, _) => {
-                let function = RloxFunction::new(stmt.clone());
+                let function = RloxFunction::new(stmt.clone(), Rc::clone(&self.environment));
                 self.environment.borrow_mut().define(name.lexeme.clone(), Some(Literal::Callable(Rc::new(function))));
                 Ok(())
             },
